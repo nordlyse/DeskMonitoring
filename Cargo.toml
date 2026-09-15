@@ -1,0 +1,31 @@
+[package]
+name = "desk-monitoring"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Jakob Lyse <jakob.lyse@gmail.com>"]
+description = "Conky-style transparent desktop monitor built with Rust and GTK4"
+repository = "https://github.com/nordlyse/DeskMonitoring"
+readme = "README.md"
+
+[features]
+default = []
+layer-shell = ["dep:gtk4-layer-shell"]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+dirs = "6"
+glib = "0.20"
+gtk = { version = "0.9.6", package = "gtk4", features = ["v4_10"] }
+icalendar = "0.16"
+native-tls = "0.2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.32"
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "time", "macros", "net", "io-util"] }
+tokio-native-tls = "0.3"
+toml = "0.8"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk4-layer-shell = { version = "0.5", optional = true }
