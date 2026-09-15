@@ -1,5 +1,5 @@
 use gtk::gdk;
-use gtk::{Application, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
+use gtk::{Application, CssProvider};
 
 use crate::config::load_config;
 use crate::setup;
@@ -21,7 +21,7 @@ fn insert_stylesheet() {
         gtk::style_context_add_provider_for_display(
             &display,
             &provider,
-            STYLE_PROVIDER_PRIORITY_APPLICATION,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
     }
 }

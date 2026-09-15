@@ -171,6 +171,43 @@ window.desk-monitor {
 }
 window.desk-setup {
   background-color: #101418;
+  color: #ffffff;
+}
+window.desk-setup label,
+window.desk-setup checkbutton,
+window.desk-setup checkbutton label,
+window.desk-setup button,
+window.desk-setup button label,
+window.desk-setup entry,
+window.desk-setup textview,
+window.desk-setup text {
+  color: #ffffff;
+}
+window.desk-setup .title-1,
+window.desk-setup .heading,
+window.desk-setup .error {
+  color: #ffffff;
+}
+window.desk-setup entry {
+  background-color: #1c2228;
+  caret-color: #ffffff;
+}
+window.desk-setup entry placeholder {
+  color: #d0d0d0;
+}
+window.desk-setup button {
+  background-color: #2a333c;
+  color: #ffffff;
+}
+window.desk-setup button.suggested-action {
+  background-color: #1f6feb;
+  color: #ffffff;
+}
+window.desk-setup scrolledwindow,
+window.desk-setup viewport,
+window.desk-setup box {
+  background-color: #101418;
+  color: #ffffff;
 }
 "#
 }
