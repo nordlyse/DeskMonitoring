@@ -12,6 +12,9 @@ use gtk::prelude::*;
 
 fn main() {
     prepare_macos_bundle();
+    if std::env::var_os("GSK_RENDERER").is_none() {
+        std::env::set_var("GSK_RENDERER", "cairo");
+    }
     let application = gtk::Application::builder()
         .application_id("org.nordlyse.DeskMonitoring")
         .build();
