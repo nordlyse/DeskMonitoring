@@ -38,9 +38,12 @@ def binary_path() -> Path:
 def load_dylibs(path: Path) -> list[str]:
     out = subprocess.check_output(["otool", "-L", str(path)], text=True)
     deps: list[str] = []
-    for line in out.splitlines()[1:]:
+    lines = out.splitlines()[1:]
+    for index, line in enumerate(lines):
         item = line.strip().split(" (", 1)[0]
         if not item or item.startswith("@") or item.startswith(SKIP_PREFIXES):
+            continue
+        if index == 0 and path.suffix == ".dylib":
             continue
         deps.append(item)
     return deps
@@ -48,40 +51,56 @@ def load_dylibs(path: Path) -> list[str]:
 
 def resolve_real(path: str) -> Path | None:
     p = Path(path)
-    if p.is_file():
+    if p.is_file() or p.is_symlink():
         return p.resolve()
     return None
 
 
-def collect_closure(entry: Path) -> dict[str, Path]:
+def collect_aliases(entry: Path) -> dict[str, Path]:
     pending = [entry]
-    seen_files: dict[str, Path] = {}
+    seen_real: set[str] = set()
+    aliases: dict[str, Path] = {}
     while pending:
         current = pending.pop()
         for dep in load_dylibs(current):
             real = resolve_real(dep)
-            if real is None or str(real) in seen_files:
+            if real is None:
                 continue
-            seen_files[str(real)] = real
-            pending.append(real)
-    return seen_files
+            aliases[Path(dep).name] = real
+            aliases.setdefault(real.name, real)
+            if str(real) not in seen_real:
+                seen_real.add(str(real))
+                pending.append(real)
+    return aliases
 
 
 def copy_and_relink(entry: Path) -> None:
+    aliases = collect_aliases(entry)
+    copied_primary: dict[str, str] = {}
     mapping: dict[str, str] = {}
-    files = collect_closure(entry)
-    for real in files.values():
-        dest_name = real.name
+
+    for dest_name, real in aliases.items():
         dest = FRAMEWORKS / dest_name
-        shutil.copy2(real, dest)
-        os.chmod(dest, 0o755)
-        mapping[str(real)] = f"@executable_path/../Frameworks/{dest_name}"
-        # Homebrew often stores the install name as /usr/local/opt/...
+        bundled = f"@executable_path/../Frameworks/{dest_name}"
+        mapping[str(real)] = bundled
+        mapping.setdefault(dest_name, bundled)
+        primary = copied_primary.get(str(real))
+        if primary is None:
+            shutil.copy2(real, dest)
+            os.chmod(dest, 0o755)
+            copied_primary[str(real)] = dest_name
+        elif dest_name != primary and not dest.exists():
+            os.symlink(primary, dest)
+
+    for dest_name, real in aliases.items():
+        mapping[f"@executable_path/../Frameworks/{real.name}"] = (
+            f"@executable_path/../Frameworks/{dest_name}"
+        )
         for dep in load_dylibs(real):
-            mapping.setdefault(dep, f"@executable_path/../Frameworks/{Path(dep).name}")
+            mapping[dep] = f"@executable_path/../Frameworks/{Path(dep).name}"
 
     def rewrite(target: Path) -> None:
-        if target.parent == FRAMEWORKS:
+        if target.parent == FRAMEWORKS and not target.is_symlink():
             run(
                 [
                     "install_name_tool",
@@ -100,33 +119,40 @@ def copy_and_relink(entry: Path) -> None:
             if new is None:
                 real = resolve_real(item)
                 if real is not None:
-                    new = mapping.get(str(real))
+                    new = mapping.get(str(real)) or mapping.get(real.name)
+            if new is None:
+                new = mapping.get(Path(item).name)
             if new and new != item:
                 subprocess.run(
                     ["install_name_tool", "-change", item, new, str(target)],
                     check=False,
                 )
 
-    rewrite(MACOS / "desk-monitoring")
-    for lib in FRAMEWORKS.glob("*.dylib"):
+    rewrite(entry)
+    for lib in sorted(FRAMEWORKS.glob("*.dylib")):
+        if lib.is_symlink():
+            continue
         rewrite(lib)
+    verify_links(entry)
 
 
-def add_wrapper() -> None:
-    wrapper = MACOS / "DeskMonitor"
-    wrapper.write_text(
-        """#!/bin/bash
-set -euo pipefail
-DIR="$(cd "$(dirname "$0")" && pwd)"
-export DYLD_LIBRARY_PATH="$DIR/../Frameworks${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
-export GDK_PIXBUF_MODULE_FILE="$DIR/../Resources/gdk-pixbuf-2.0/loaders.cache"
-export GSETTINGS_SCHEMA_DIR="$DIR/../Resources/glib-2.0/schemas"
-export XDG_DATA_DIRS="$DIR/../Resources/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-exec "$DIR/desk-monitoring" "$@"
-""",
-        encoding="utf-8",
-    )
-    os.chmod(wrapper, 0o755)
+def verify_links(entry: Path) -> None:
+    missing: list[str] = []
+    leftover: list[str] = []
+    targets = [entry, *sorted(p for p in FRAMEWORKS.glob("*.dylib") if not p.is_symlink())]
+    for target in targets:
+        out = subprocess.check_output(["otool", "-L", str(target)], text=True)
+        for line in out.splitlines()[1:]:
+            item = line.strip().split(" (", 1)[0]
+            if item.startswith("@executable_path/../Frameworks/"):
+                name = item.rsplit("/", 1)[-1]
+                if not (FRAMEWORKS / name).exists():
+                    missing.append(f"{target.name} -> {name}")
+            elif item.startswith(("/usr/local/", "/opt/homebrew/")):
+                leftover.append(f"{target.name} -> {item}")
+    if missing or leftover:
+        details = "\n".join(missing + leftover)
+        raise SystemExit(f"Bundled libraries are incomplete:\n{details}")
 
 
 def copy_gtk_data() -> None:
@@ -207,11 +233,11 @@ def main() -> None:
     FRAMEWORKS.mkdir(parents=True)
     RESOURCES.mkdir(parents=True)
     shutil.copy2(ROOT / "packaging" / "Info.plist", CONTENTS / "Info.plist")
-    shutil.copy2(binary_path(), MACOS / "desk-monitoring")
-    os.chmod(MACOS / "desk-monitoring", 0o755)
-    add_wrapper()
+    binary = MACOS / "DeskMonitor"
+    shutil.copy2(binary_path(), binary)
+    os.chmod(binary, 0o755)
     add_icon()
-    copy_and_relink(MACOS / "desk-monitoring")
+    copy_and_relink(binary)
     copy_gtk_data()
     run(["codesign", "--force", "--deep", "--sign", "-", str(APP)])
     dmg = add_dmg()
