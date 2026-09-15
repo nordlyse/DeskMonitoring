@@ -8,6 +8,21 @@ description = "Conky-style transparent desktop monitor built with Rust and GTK4"
 repository = "https://github.com/nordlyse/DeskMonitoring"
 readme = "README.md"
 
+[package.metadata.deb]
+maintainer = "Jakob Lyse <jakob.lyse@gmail.com>"
+copyright = "2026 Jakob Lyse"
+extended-description = """Conky-style transparent desktop monitor with live CPU, memory, disk, network, mail, calendar, and weather charts."""
+section = "utils"
+priority = "optional"
+depends = "$auto"
+assets = [
+    ["target/release/desk-monitoring", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/desk-monitoring/", "644"],
+    ["LICENSE", "usr/share/doc/desk-monitoring/", "644"],
+    ["packaging/desk-monitoring.desktop", "usr/share/applications/", "644"],
+    ["packaging/desk-monitoring.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
+]
+
 [features]
 default = []
 layer-shell = ["dep:gtk4-layer-shell"]

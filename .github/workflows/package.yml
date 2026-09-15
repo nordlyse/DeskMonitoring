@@ -1,0 +1,86 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            artifact: DeskMonitor-macos-arm64
+          - os: macos-13
+            artifact: DeskMonitor-macos-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install GTK4
+        run: brew install gtk4 pkgconf
+      - name: Package
+        run: bash packaging/package-macos.sh
+      - name: Rename disk image
+        run: mv dist/DeskMonitor-macos.dmg dist/${{ matrix.artifact }}.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.dmg
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install GTK4
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-4-dev pkg-config libssl-dev
+      - name: Package
+        run: bash packaging/package-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeskMonitor-linux-x64
+          path: dist/*.deb
+
+  windows:
+    name: Windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        id: gtk-cache
+        with:
+          path: C:\gtk-build\gtk\x64\release
+          key: windows-gtk4-gvsbuild
+      - name: Install pkg-config
+        run: choco install pkgconfiglite -y
+      - name: Install GTK4
+        if: steps.gtk-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          pipx install gvsbuild
+          $env:RUSTUP_TOOLCHAIN = "stable"
+          gvsbuild build gtk4
+      - name: Package
+        shell: pwsh
+        run: |
+          $env:PKG_CONFIG_PATH = "C:\gtk-build\gtk\x64\release\lib\pkgconfig"
+          $env:Path = "C:\gtk-build\gtk\x64\release\bin;" + $env:Path
+          $env:LIB = "C:\gtk-build\gtk\x64\release\lib;" + $env:LIB
+          powershell -File packaging/package-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeskMonitor-windows-x64
+          path: dist/DeskMonitor-windows.zip

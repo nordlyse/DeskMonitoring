@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Desk Monitor
+Comment=Conky-style transparent desktop overlay
+Exec=desk-monitoring
+Icon=desk-monitoring
+Terminal=false
+Categories=Utility;System;Monitor;
+StartupNotify=false

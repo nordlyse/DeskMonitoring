@@ -31,6 +31,38 @@ Mail fields:
 - **TOTAL** — IN + OUT
 - **UNREAD** — unseen inbox messages
 
+## Packages
+
+GitHub Actions builds installers on tag `v*` or from **Actions → Package → Run workflow**:
+
+| Platform | Artifact | Notes |
+| --- | --- | --- |
+| macOS | `DeskMonitor-macos-arm64.dmg` / `DeskMonitor-macos-x64.dmg` | `.app` plus bundled GTK dylibs |
+| Linux | `DeskMonitor-linux-x64` `.deb` | Needs GTK 4 from the distro (`libgtk-4-1`) |
+| Windows | `DeskMonitor-windows-x64.zip` | Run `DeskMonitor.bat`; GTK DLLs are inside the zip |
+
+Local packaging:
+
+```bash
+# macOS
+bash packaging/package-macos.sh
+
+# Linux (native)
+bash packaging/package-linux.sh
+
+# Linux (Ubuntu 24.04 Docker)
+bash packaging/package-linux-docker.sh
+
+# Windows (PowerShell, after gvsbuild GTK4)
+powershell -File packaging/package-windows.ps1
+```
+
+macOS output is `dist/Desk Monitor.app` and `dist/DeskMonitor-macos.dmg`.
+Linux output is `dist/*.deb`.
+Windows output is `dist/DeskMonitor-windows.zip`.
+
+NSIS and WiX are not used (license). Windows ships as a zip.
+
 ## Build
 
 Install GTK4 development files, then:
