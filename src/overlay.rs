@@ -32,6 +32,7 @@ pub fn place_overlay(window: &ApplicationWindow, config: &Config) {
         height = height.min((mh as f64 * 0.92) as i32).max(220);
     }
     window.set_default_size(width, height);
+    window.set_size_request(width, height);
 
     #[cfg(all(feature = "layer-shell", target_os = "linux"))]
     {
@@ -103,32 +104,4 @@ fn monitor_size() -> Option<(i32, i32)> {
     let monitor = display.monitors().item(0)?.downcast::<gdk::Monitor>().ok()?;
     let geo = monitor.geometry();
     Some((geo.width(), geo.height()))
-}
-
-pub fn attach_drag(window: &ApplicationWindow, surface_host: &impl IsA<gtk::Widget>) {
-    let click = gtk::GestureClick::new();
-    click.set_button(gdk::BUTTON_PRIMARY);
-    let window_weak = window.downgrade();
-    click.connect_pressed(move |gesture, n_press, x, y| {
-        if n_press != 1 {
-            return;
-        }
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let Some(native) = window.native() else {
-            return;
-        };
-        let Some(surface) = native.surface() else {
-            return;
-        };
-        let Ok(toplevel) = surface.downcast::<gdk::Toplevel>() else {
-            return;
-        };
-        let Some(device) = gesture.device() else {
-            return;
-        };
-        toplevel.begin_move(&device, gdk::BUTTON_PRIMARY as i32, x, y, gdk::CURRENT_TIME);
-    });
-    surface_host.add_controller(click);
 }

@@ -4,12 +4,13 @@ A Conky-style desktop overlay built with **Rust** and **GTK4**. It draws a trans
 
 ## Setup
 
-Every launch asks for settings before the overlay starts. Saved values are filled in when present, so you can confirm what will run or change them:
+Every launch asks for settings before the overlay starts. Saved values are filled in when present. Later, click **SETTINGS** on the overlay (or right-click it) to change color, position, visible panels, mail, or calendar:
 
 - **Panel position:** left, right, top, bottom, or center
 - **Color palette:** Matrix green, turquoise, blue, pink, or yellow
-- Optional IMAP host for incoming / outgoing / total / unread mail counts
-- Optional `.ics` file or folder for today's calendar events
+- **Visible panels:** turn CPU, memory, disk, network, mail, calendar, or weather off to hide them
+- Optional IMAP host for incoming / outgoing / total / unread mail counts; leave host empty to drop IMAP
+- Optional `.ics` file or folder for today's calendar events; leave the path empty to drop a custom calendar
 
 Settings are stored in `~/.config/desk-monitoring/config.toml` (or the platform config directory).
 

@@ -24,7 +24,7 @@ impl Collector {
     }
 }
 
-pub fn spawn_remote_loop(config: Config, snapshot: std::sync::Arc<SharedSnapshot>) {
+pub fn spawn_remote_loop(config: std::sync::Arc<std::sync::Mutex<Config>>, snapshot: std::sync::Arc<SharedSnapshot>) {
     std::thread::Builder::new()
         .name("desk-monitor-remote".into())
         .spawn(move || {
@@ -34,12 +34,13 @@ pub fn spawn_remote_loop(config: Config, snapshot: std::sync::Arc<SharedSnapshot
                 .expect("tokio runtime");
             let mut ticks = 0u64;
             loop {
+                let cfg = config.lock().map(|guard| guard.clone()).unwrap_or_default();
                 rt.block_on(async {
                     if ticks % 15 == 0 {
                         weather::refresh(&snapshot).await;
                     }
-                    calendar::refresh(&config, &snapshot);
-                    mail::refresh(&config, &snapshot).await;
+                    calendar::refresh(&cfg, &snapshot);
+                    mail::refresh(&cfg, &snapshot).await;
                 });
                 ticks = ticks.saturating_add(1);
                 std::thread::sleep(std::time::Duration::from_secs(60));

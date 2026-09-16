@@ -40,9 +40,47 @@ impl PaletteKind {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Panels {
+    #[serde(default = "default_true")]
+    pub cpu: bool,
+    #[serde(default = "default_true")]
+    pub ram: bool,
+    #[serde(default = "default_true")]
+    pub disk: bool,
+    #[serde(default = "default_true")]
+    pub network: bool,
+    #[serde(default = "default_true")]
+    pub mail: bool,
+    #[serde(default = "default_true")]
+    pub calendar: bool,
+    #[serde(default = "default_true")]
+    pub weather: bool,
+}
+
+impl Default for Panels {
+    fn default() -> Self {
+        Self {
+            cpu: true,
+            ram: true,
+            disk: true,
+            network: true,
+            mail: true,
+            calendar: true,
+            weather: true,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub position: Position,
     pub palette: PaletteKind,
+    #[serde(default)]
+    pub panels: Panels,
     #[serde(default)]
     pub imap_host: String,
     #[serde(default = "default_imap_port")]
@@ -76,6 +114,7 @@ impl Default for Config {
         Self {
             position: Position::Right,
             palette: PaletteKind::Matrix,
+            panels: Panels::default(),
             imap_host: String::new(),
             imap_port: default_imap_port(),
             imap_user: String::new(),

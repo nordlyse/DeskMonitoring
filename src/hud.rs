@@ -4,206 +4,300 @@ use std::f64::consts::PI;
 use chrono::Local;
 use gtk::cairo::Context;
 
-use crate::config::Position;
+use crate::config::{Config, Position};
 use crate::metrics::{format_bps, format_bytes};
 use crate::snapshot::Snapshot;
 use crate::theme::{Palette, Rgba};
 
-pub fn paint(
-    cr: &Context,
-    width: i32,
-    height: i32,
-    snapshot: &Snapshot,
-    palette: Palette,
-    position: Position,
-) {
+const SETTINGS_LABEL: &str = "SETTINGS";
+
+pub fn paint(cr: &Context, width: i32, height: i32, snapshot: &Snapshot, config: &Config) {
     let w = width.max(1) as f64;
     let h = height.max(1) as f64;
+    let palette = Palette::from_kind(config.palette);
     cr.set_operator(gtk::cairo::Operator::Source);
     cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
     cr.paint().ok();
     cr.set_operator(gtk::cairo::Operator::Over);
 
-    if position.is_horizontal() {
-        paint_horizontal(cr, w, h, snapshot, palette);
+    if config.position.is_horizontal() {
+        paint_horizontal(cr, w, h, snapshot, config, palette);
     } else {
-        paint_vertical(cr, w, h, snapshot, palette);
+        paint_vertical(cr, w, h, snapshot, config, palette);
     }
 }
 
-fn paint_vertical(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, palette: Palette) {
+pub fn hit_settings(x: f64, y: f64, width: i32, position: Position) -> bool {
+    let (pad, origin_y) = header_origin(position);
+    let right = pad + (width.max(1) as f64 - pad * 2.0);
+    let left = right - 108.0;
+    let top = origin_y + 8.0;
+    let bottom = origin_y + 36.0;
+    x >= left && x <= right && y >= top && y <= bottom
+}
+
+fn header_origin(position: Position) -> (f64, f64) {
+    if position.is_horizontal() {
+        (16.0, 18.0)
+    } else {
+        (22.0, 28.0)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Block {
+    Cpu,
+    Ram,
+    Disk,
+    Net,
+    Mail,
+    Cal,
+    Wx,
+}
+
+impl Block {
+    fn weight(self) -> f64 {
+        match self {
+            Self::Cpu | Self::Ram | Self::Net => 1.6,
+            Self::Disk => 1.1,
+            Self::Mail => 1.3,
+            Self::Cal | Self::Wx => 1.2,
+        }
+    }
+
+    fn from_config(config: &Config) -> Vec<Self> {
+        let mut blocks = Vec::new();
+        if config.panels.cpu {
+            blocks.push(Self::Cpu);
+        }
+        if config.panels.ram {
+            blocks.push(Self::Ram);
+        }
+        if config.panels.disk {
+            blocks.push(Self::Disk);
+        }
+        if config.panels.network {
+            blocks.push(Self::Net);
+        }
+        if config.panels.mail {
+            blocks.push(Self::Mail);
+        }
+        if config.panels.calendar {
+            blocks.push(Self::Cal);
+        }
+        if config.panels.weather {
+            blocks.push(Self::Wx);
+        }
+        blocks
+    }
+}
+
+fn paint_vertical(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, config: &Config, palette: Palette) {
     let pad = 22.0;
     let inner_w = w - pad * 2.0;
     let mut y = 28.0;
-    y += paint_header(cr, pad, y, inner_w, snapshot, palette) + 10.0;
-
-    let gauge_h = (h * 0.16).clamp(96.0, 130.0);
-    paint_labeled_panel(cr, pad, y, inner_w, gauge_h, "CPU LOAD", palette);
-    paint_gauge(cr, pad + 18.0, y + 28.0, 78.0, snapshot.cpu_pct, palette);
-    paint_sparkline(
-        cr,
-        pad + 110.0,
-        y + 34.0,
-        inner_w - 128.0,
-        gauge_h - 48.0,
-        &snapshot.cpu_history,
-        palette,
-        false,
-    );
-    text(
-        cr,
-        pad + 110.0,
-        y + 26.0,
-        13.0,
-        &format!("{:.0}%", snapshot.cpu_pct),
-        palette.neon,
-        false,
-    );
-    y += gauge_h + 10.0;
-
-    paint_labeled_panel(cr, pad, y, inner_w, gauge_h, "MEMORY", palette);
-    paint_gauge(cr, pad + 18.0, y + 28.0, 78.0, snapshot.ram_pct(), palette);
-    paint_sparkline(
-        cr,
-        pad + 110.0,
-        y + 34.0,
-        inner_w - 128.0,
-        gauge_h - 48.0,
-        &snapshot.ram_history,
-        palette,
-        false,
-    );
-    text(
-        cr,
-        pad + 110.0,
-        y + 26.0,
-        12.0,
-        &format!(
-            "{} / {}",
-            format_bytes(snapshot.ram_used),
-            format_bytes(snapshot.ram_total)
-        ),
-        palette.muted,
-        false,
-    );
-    y += gauge_h + 10.0;
-
-    let disk_h = (h * 0.11).clamp(78.0, 100.0);
-    paint_labeled_panel(cr, pad, y, inner_w, disk_h, "DISK", palette);
-    paint_disk_bar(cr, pad + 16.0, y + 32.0, inner_w - 32.0, snapshot, palette);
-    y += disk_h + 10.0;
-
-    let net_h = (h * 0.16).clamp(100.0, 140.0);
-    paint_labeled_panel(cr, pad, y, inner_w, net_h, "NETWORK", palette);
-    text(
-        cr,
-        pad + 16.0,
-        y + 28.0,
-        12.0,
-        &format!(
-            "DOWN {}   UP {}",
-            format_bps(snapshot.net_down_bps),
-            format_bps(snapshot.net_up_bps)
-        ),
-        palette.text,
-        false,
-    );
-    paint_dual_area(
-        cr,
-        pad + 16.0,
-        y + 40.0,
-        inner_w - 32.0,
-        net_h - 52.0,
-        &snapshot.net_down_history,
-        &snapshot.net_up_history,
-        palette,
-    );
-    y += net_h + 10.0;
-
-    let mail_h = (h * 0.13).clamp(90.0, 120.0);
-    paint_labeled_panel(cr, pad, y, inner_w, mail_h, "MAIL", palette);
-    paint_mail_table(cr, pad + 12.0, y + 28.0, inner_w - 24.0, mail_h - 40.0, snapshot, palette);
-    y += mail_h + 10.0;
-
-    let cal_h = (h * 0.12).clamp(84.0, 120.0);
-    paint_labeled_panel(cr, pad, y, inner_w, cal_h, "CALENDAR  TODAY", palette);
-    paint_calendar(cr, pad + 16.0, y + 30.0, inner_w - 32.0, cal_h - 40.0, snapshot, palette);
-    y += cal_h + 10.0;
-
-    let wx_h = (h - y - pad).max(80.0);
-    paint_labeled_panel(cr, pad, y, inner_w, wx_h, "WEATHER", palette);
-    paint_weather(cr, pad + 16.0, y + 30.0, inner_w - 32.0, snapshot, palette);
+    y += paint_header(cr, pad, y, inner_w, palette) + 10.0;
+    let blocks = Block::from_config(config);
+    if blocks.is_empty() {
+        text(
+            cr,
+            pad,
+            y + 24.0,
+            13.0,
+            "Open SETTINGS to add panels",
+            palette.muted,
+            false,
+        );
+        return;
+    }
+    let gap = 10.0;
+    let leftover = (h - y - pad - gap * blocks.len().saturating_sub(1) as f64).max(80.0);
+    let total: f64 = blocks.iter().map(|b| b.weight()).sum();
+    for block in blocks {
+        let bh = leftover * (block.weight() / total);
+        paint_block(cr, pad, y, inner_w, bh, block, snapshot, palette, false);
+        y += bh + gap;
+    }
 }
 
-fn paint_horizontal(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, palette: Palette) {
+fn paint_horizontal(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, config: &Config, palette: Palette) {
     let pad = 16.0;
-    let header_h = paint_header(cr, pad, 18.0, w - pad * 2.0, snapshot, palette);
+    let header_h = paint_header(cr, pad, 18.0, w - pad * 2.0, palette);
     let y = 18.0 + header_h + 8.0;
-    let body_h = h - y - pad;
+    let body_h = (h - y - pad).max(80.0);
     let gap = 8.0;
-    let cols = 7.0;
-    let col_w = (w - pad * 2.0 - gap * (cols - 1.0)) / cols;
+    let mut cols: Vec<(Block, f64)> = Vec::new();
+    if config.panels.cpu {
+        cols.push((Block::Cpu, 1.0));
+    }
+    if config.panels.ram {
+        cols.push((Block::Ram, 1.0));
+    }
+    if config.panels.disk {
+        cols.push((Block::Disk, 1.0));
+    }
+    if config.panels.network {
+        cols.push((Block::Net, 1.35));
+    }
+    if config.panels.mail {
+        cols.push((Block::Mail, 1.15));
+    }
+    let side = config.panels.calendar || config.panels.weather;
+    if side {
+        cols.push((Block::Cal, 1.2));
+    }
+    if cols.is_empty() {
+        text(
+            cr,
+            pad,
+            y + 24.0,
+            13.0,
+            "Open SETTINGS to add panels",
+            palette.muted,
+            false,
+        );
+        return;
+    }
+    let total: f64 = cols.iter().map(|(_, weight)| *weight).sum();
+    let inner = w - pad * 2.0 - gap * cols.len().saturating_sub(1) as f64;
     let mut x = pad;
-
-    paint_labeled_panel(cr, x, y, col_w, body_h, "CPU", palette);
-    paint_gauge(cr, x + 18.0, y + 26.0, body_h - 48.0, snapshot.cpu_pct, palette);
-    x += col_w + gap;
-
-    paint_labeled_panel(cr, x, y, col_w, body_h, "RAM", palette);
-    paint_gauge(cr, x + 18.0, y + 26.0, body_h - 48.0, snapshot.ram_pct(), palette);
-    x += col_w + gap;
-
-    paint_labeled_panel(cr, x, y, col_w, body_h, "DISK", palette);
-    paint_mini_disk(cr, x + 10.0, y + 28.0, col_w - 20.0, body_h - 40.0, snapshot, palette);
-    x += col_w + gap;
-
-    paint_labeled_panel(cr, x, y, col_w * 1.35, body_h, "NETWORK", palette);
-    paint_dual_area(
-        cr,
-        x + 10.0,
-        y + 28.0,
-        col_w * 1.35 - 20.0,
-        body_h - 40.0,
-        &snapshot.net_down_history,
-        &snapshot.net_up_history,
-        palette,
-    );
-    x += col_w * 1.35 + gap;
-
-    paint_labeled_panel(cr, x, y, col_w * 1.15, body_h, "MAIL", palette);
-    paint_mail_table(cr, x + 8.0, y + 26.0, col_w * 1.15 - 16.0, body_h - 36.0, snapshot, palette);
-    x += col_w * 1.15 + gap;
-
-    let rest = w - pad - x;
-    paint_labeled_panel(cr, x, y, rest, body_h * 0.48, "CALENDAR", palette);
-    paint_calendar(cr, x + 10.0, y + 26.0, rest - 20.0, body_h * 0.48 - 34.0, snapshot, palette);
-    paint_labeled_panel(
-        cr,
-        x,
-        y + body_h * 0.48 + 8.0,
-        rest,
-        body_h * 0.52 - 8.0,
-        "WEATHER",
-        palette,
-    );
-    paint_weather(
-        cr,
-        x + 10.0,
-        y + body_h * 0.48 + 34.0,
-        rest - 20.0,
-        snapshot,
-        palette,
-    );
+    let last = cols.len() - 1;
+    for (i, (block, weight)) in cols.into_iter().enumerate() {
+        let col_w = if i == last {
+            (pad + inner + gap * last as f64) - x
+        } else {
+            inner * (weight / total)
+        };
+        if matches!(block, Block::Cal) {
+            paint_side_column(cr, x, y, col_w, body_h, snapshot, config, palette);
+        } else {
+            paint_block(cr, x, y, col_w, body_h, block, snapshot, palette, true);
+        }
+        x += col_w + gap;
+    }
 }
 
-fn paint_header(
+fn paint_side_column(
     cr: &Context,
     x: f64,
     y: f64,
-    width: f64,
-    _snapshot: &Snapshot,
+    w: f64,
+    h: f64,
+    snapshot: &Snapshot,
+    config: &Config,
     palette: Palette,
-) -> f64 {
+) {
+    match (config.panels.calendar, config.panels.weather) {
+        (true, true) => {
+            paint_block(cr, x, y, w, h * 0.48, Block::Cal, snapshot, palette, true);
+            paint_block(
+                cr,
+                x,
+                y + h * 0.48 + 8.0,
+                w,
+                h * 0.52 - 8.0,
+                Block::Wx,
+                snapshot,
+                palette,
+                true,
+            );
+        }
+        (true, false) => paint_block(cr, x, y, w, h, Block::Cal, snapshot, palette, true),
+        (false, true) => paint_block(cr, x, y, w, h, Block::Wx, snapshot, palette, true),
+        (false, false) => {}
+    }
+}
+
+fn paint_block(
+    cr: &Context,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    block: Block,
+    snapshot: &Snapshot,
+    palette: Palette,
+    compact: bool,
+) {
+    match block {
+        Block::Cpu => {
+            paint_labeled_panel(cr, x, y, w, h, if compact { "CPU" } else { "CPU LOAD" }, palette);
+            if compact {
+                paint_gauge(cr, x + 18.0, y + 26.0, h - 48.0, snapshot.cpu_pct, palette);
+            } else {
+                paint_gauge(cr, x + 18.0, y + 28.0, 78.0, snapshot.cpu_pct, palette);
+                paint_sparkline(cr, x + 110.0, y + 34.0, w - 128.0, h - 48.0, &snapshot.cpu_history, palette, false);
+                text(cr, x + 110.0, y + 26.0, 13.0, &format!("{:.0}%", snapshot.cpu_pct), palette.neon, false);
+            }
+        }
+        Block::Ram => {
+            paint_labeled_panel(cr, x, y, w, h, if compact { "RAM" } else { "MEMORY" }, palette);
+            if compact {
+                paint_gauge(cr, x + 18.0, y + 26.0, h - 48.0, snapshot.ram_pct(), palette);
+            } else {
+                paint_gauge(cr, x + 18.0, y + 28.0, 78.0, snapshot.ram_pct(), palette);
+                paint_sparkline(cr, x + 110.0, y + 34.0, w - 128.0, h - 48.0, &snapshot.ram_history, palette, false);
+                text(
+                    cr,
+                    x + 110.0,
+                    y + 26.0,
+                    12.0,
+                    &format!(
+                        "{} / {}",
+                        format_bytes(snapshot.ram_used),
+                        format_bytes(snapshot.ram_total)
+                    ),
+                    palette.muted,
+                    false,
+                );
+            }
+        }
+        Block::Disk => {
+            paint_labeled_panel(cr, x, y, w, h, "DISK", palette);
+            if compact {
+                paint_mini_disk(cr, x + 10.0, y + 28.0, w - 20.0, h - 40.0, snapshot, palette);
+            } else {
+                paint_disk_bar(cr, x + 16.0, y + 32.0, w - 32.0, snapshot, palette);
+            }
+        }
+        Block::Net => {
+            paint_labeled_panel(cr, x, y, w, h, "NETWORK", palette);
+            if compact {
+                paint_dual_area(cr, x + 10.0, y + 28.0, w - 20.0, h - 40.0, &snapshot.net_down_history, &snapshot.net_up_history, palette);
+            } else {
+                text(
+                    cr,
+                    x + 16.0,
+                    y + 28.0,
+                    12.0,
+                    &format!(
+                        "DOWN {}   UP {}",
+                        format_bps(snapshot.net_down_bps),
+                        format_bps(snapshot.net_up_bps)
+                    ),
+                    palette.text,
+                    false,
+                );
+                paint_dual_area(cr, x + 16.0, y + 40.0, w - 32.0, h - 52.0, &snapshot.net_down_history, &snapshot.net_up_history, palette);
+            }
+        }
+        Block::Mail => {
+            paint_labeled_panel(cr, x, y, w, h, "MAIL", palette);
+            let inset = if compact { 8.0 } else { 12.0 };
+            paint_mail_table(cr, x + inset, y + 26.0, w - inset * 2.0, h - 36.0, snapshot, palette);
+        }
+        Block::Cal => {
+            paint_labeled_panel(cr, x, y, w, h, if compact { "CALENDAR" } else { "CALENDAR  TODAY" }, palette);
+            paint_calendar(cr, x + 16.0, y + 30.0, w - 32.0, h - 40.0, snapshot, palette);
+        }
+        Block::Wx => {
+            paint_labeled_panel(cr, x, y, w, h, "WEATHER", palette);
+            paint_weather(cr, x + 16.0, y + 30.0, w - 32.0, snapshot, palette);
+        }
+    }
+}
+
+fn paint_header(cr: &Context, x: f64, y: f64, width: f64, palette: Palette) -> f64 {
     text(cr, x, y, 18.0, "DESK MONITOR", palette.neon, true);
     let clock = Local::now().format("%Y-%m-%d  %H:%M:%S").to_string();
     text_right(cr, x + width, y, 13.0, &clock, palette.muted);
@@ -216,6 +310,7 @@ fn paint_header(
         palette.muted,
         false,
     );
+    text_right(cr, x + width, y + 20.0, 11.0, SETTINGS_LABEL, palette.neon);
     36.0
 }
 
