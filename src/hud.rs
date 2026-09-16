@@ -19,16 +19,11 @@ pub fn paint(cr: &Context, width: i32, height: i32, snapshot: &Snapshot, config:
     cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
     cr.paint().ok();
     cr.set_operator(gtk::cairo::Operator::Over);
-
-    if config.position.is_horizontal() {
-        paint_horizontal(cr, w, h, snapshot, config, palette);
-    } else {
-        paint_vertical(cr, w, h, snapshot, config, palette);
-    }
+    paint_vertical(cr, w, h, snapshot, config, palette);
 }
 
-pub fn hit_settings(x: f64, y: f64, width: i32, position: Position) -> bool {
-    let (pad, origin_y) = header_origin(position);
+pub fn hit_settings(x: f64, y: f64, width: i32, _position: Position) -> bool {
+    let (pad, origin_y) = header_origin();
     let right = pad + (width.max(1) as f64 - pad * 2.0);
     let left = right - 108.0;
     let top = origin_y + 8.0;
@@ -36,12 +31,8 @@ pub fn hit_settings(x: f64, y: f64, width: i32, position: Position) -> bool {
     x >= left && x <= right && y >= top && y <= bottom
 }
 
-fn header_origin(position: Position) -> (f64, f64) {
-    if position.is_horizontal() {
-        (16.0, 18.0)
-    } else {
-        (22.0, 28.0)
-    }
+fn header_origin() -> (f64, f64) {
+    (22.0, 28.0)
 }
 
 #[derive(Clone, Copy)]
@@ -117,94 +108,6 @@ fn paint_vertical(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, config: &Co
         let bh = leftover * (block.weight() / total);
         paint_block(cr, pad, y, inner_w, bh, block, snapshot, palette, false);
         y += bh + gap;
-    }
-}
-
-fn paint_horizontal(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, config: &Config, palette: Palette) {
-    let pad = 16.0;
-    let header_h = paint_header(cr, pad, 18.0, w - pad * 2.0, palette);
-    let y = 18.0 + header_h + 8.0;
-    let body_h = (h - y - pad).max(80.0);
-    let gap = 8.0;
-    let mut cols: Vec<(Block, f64)> = Vec::new();
-    if config.panels.cpu {
-        cols.push((Block::Cpu, 1.0));
-    }
-    if config.panels.ram {
-        cols.push((Block::Ram, 1.0));
-    }
-    if config.panels.disk {
-        cols.push((Block::Disk, 1.0));
-    }
-    if config.panels.network {
-        cols.push((Block::Net, 1.35));
-    }
-    if config.panels.mail {
-        cols.push((Block::Mail, 1.15));
-    }
-    let side = config.panels.calendar || config.panels.weather;
-    if side {
-        cols.push((Block::Cal, 1.2));
-    }
-    if cols.is_empty() {
-        text(
-            cr,
-            pad,
-            y + 24.0,
-            13.0,
-            "Open SETTINGS to add panels",
-            palette.muted,
-            false,
-        );
-        return;
-    }
-    let total: f64 = cols.iter().map(|(_, weight)| *weight).sum();
-    let inner = w - pad * 2.0 - gap * cols.len().saturating_sub(1) as f64;
-    let mut x = pad;
-    let last = cols.len() - 1;
-    for (i, (block, weight)) in cols.into_iter().enumerate() {
-        let col_w = if i == last {
-            (pad + inner + gap * last as f64) - x
-        } else {
-            inner * (weight / total)
-        };
-        if matches!(block, Block::Cal) {
-            paint_side_column(cr, x, y, col_w, body_h, snapshot, config, palette);
-        } else {
-            paint_block(cr, x, y, col_w, body_h, block, snapshot, palette, true);
-        }
-        x += col_w + gap;
-    }
-}
-
-fn paint_side_column(
-    cr: &Context,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-    snapshot: &Snapshot,
-    config: &Config,
-    palette: Palette,
-) {
-    match (config.panels.calendar, config.panels.weather) {
-        (true, true) => {
-            paint_block(cr, x, y, w, h * 0.48, Block::Cal, snapshot, palette, true);
-            paint_block(
-                cr,
-                x,
-                y + h * 0.48 + 8.0,
-                w,
-                h * 0.52 - 8.0,
-                Block::Wx,
-                snapshot,
-                palette,
-                true,
-            );
-        }
-        (true, false) => paint_block(cr, x, y, w, h, Block::Cal, snapshot, palette, true),
-        (false, true) => paint_block(cr, x, y, w, h, Block::Wx, snapshot, palette, true),
-        (false, false) => {}
     }
 }
 

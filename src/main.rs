@@ -3,6 +3,8 @@ mod config;
 mod hud;
 mod metrics;
 mod overlay;
+#[cfg(target_os = "macos")]
+mod macos_place;
 mod setup;
 mod snapshot;
 mod theme;

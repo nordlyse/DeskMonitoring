@@ -14,7 +14,7 @@ The first launch asks for settings. After that the overlay starts with the saved
 
 Settings are stored in `~/.config/desk-monitoring/config.toml` (or the platform config directory).
 
-Drag the panel to move it. On Linux Wayland, build with the `layer-shell` feature so the chosen edge/center is applied as a desktop overlay.
+Drag the panel to move it. Position still snaps to the chosen screen edge when you apply settings: left, right, top, bottom, or center. The panel keeps the same size in every position.
 
 ## Metrics
 

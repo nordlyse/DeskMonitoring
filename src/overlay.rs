@@ -1,15 +1,20 @@
 use gtk::gdk::{self, Display, prelude::SurfaceExt};
+use gtk::glib;
 use gtk::prelude::*;
 use gtk::ApplicationWindow;
 
 use crate::config::{Config, Position};
 
-pub fn overlay_size(position: Position) -> (i32, i32) {
-    match position {
-        Position::Left | Position::Right => (380, 980),
-        Position::Top | Position::Bottom => (1280, 280),
-        Position::Center => (740, 900),
-    }
+const PANEL_WIDTH: i32 = 380;
+const PANEL_MARGIN: i32 = 12;
+
+pub fn panel_size(screen_w: i32, screen_h: i32) -> (i32, i32) {
+    let width = PANEL_WIDTH.min((screen_w as f64 * 0.32) as i32).max(300);
+    let height = (screen_h - PANEL_MARGIN * 2)
+        .min((screen_h as f64 * 0.92) as i32)
+        .max(400);
+    let _ = screen_w;
+    (width, height)
 }
 
 pub fn apply_window_chrome(window: &ApplicationWindow) {
@@ -23,24 +28,46 @@ pub fn apply_window_chrome(window: &ApplicationWindow) {
             surface.set_opaque_region(None);
         }
     });
+    window.connect_map(|window| {
+        let position = crate::config::current_config().position;
+        snap_overlay(window, position);
+    });
 }
 
 pub fn place_overlay(window: &ApplicationWindow, config: &Config) {
-    let (mut width, mut height) = overlay_size(config.position);
-    if let Some((mw, mh)) = monitor_size() {
-        width = width.min((mw as f64 * 0.92) as i32).max(320);
-        height = height.min((mh as f64 * 0.92) as i32).max(220);
-    }
+    let (mw, mh) = monitor_size().unwrap_or((1440, 900));
+    let (width, height) = panel_size(mw, mh);
+    window.set_resizable(true);
     window.set_default_size(width, height);
     window.set_size_request(width, height);
+    window.set_resizable(false);
 
     #[cfg(all(feature = "layer-shell", target_os = "linux"))]
     {
         place_with_layer_shell(window, config.position, width, height);
     }
-    #[cfg(not(all(feature = "layer-shell", target_os = "linux")))]
+
+    let position = config.position;
+    let window = window.clone();
+    glib::idle_add_local_once(move || {
+        snap_overlay(&window, position);
+    });
+}
+
+fn snap_overlay(window: &ApplicationWindow, position: Position) {
+    let (mw, mh) = monitor_size().unwrap_or((1440, 900));
+    let (width, height) = panel_size(mw, mh);
+    window.set_resizable(true);
+    window.set_default_size(width, height);
+    window.set_size_request(width, height);
+    window.set_resizable(false);
+
+    #[cfg(target_os = "macos")]
+    crate::macos_place::apply_frame(window, position, width, height);
+
+    #[cfg(not(target_os = "macos"))]
     {
-        let _ = config;
+        let _ = position;
         let _ = width;
         let _ = height;
     }
@@ -69,32 +96,32 @@ fn place_with_layer_shell(window: &ApplicationWindow, position: Position, width:
         Position::Left => {
             window.set_anchor(Edge::Left, true);
             window.set_anchor(Edge::Top, true);
-            window.set_margin(Edge::Left, 12);
-            window.set_margin(Edge::Top, ((mh - height) / 2).max(12));
+            window.set_margin(Edge::Left, PANEL_MARGIN);
+            window.set_margin(Edge::Top, ((mh - height) / 2).max(PANEL_MARGIN));
         }
         Position::Right => {
             window.set_anchor(Edge::Right, true);
             window.set_anchor(Edge::Top, true);
-            window.set_margin(Edge::Right, 12);
-            window.set_margin(Edge::Top, ((mh - height) / 2).max(12));
+            window.set_margin(Edge::Right, PANEL_MARGIN);
+            window.set_margin(Edge::Top, ((mh - height) / 2).max(PANEL_MARGIN));
         }
         Position::Top => {
             window.set_anchor(Edge::Top, true);
             window.set_anchor(Edge::Left, true);
-            window.set_margin(Edge::Top, 12);
-            window.set_margin(Edge::Left, ((mw - width) / 2).max(12));
+            window.set_margin(Edge::Top, PANEL_MARGIN);
+            window.set_margin(Edge::Left, ((mw - width) / 2).max(PANEL_MARGIN));
         }
         Position::Bottom => {
             window.set_anchor(Edge::Bottom, true);
             window.set_anchor(Edge::Left, true);
-            window.set_margin(Edge::Bottom, 12);
-            window.set_margin(Edge::Left, ((mw - width) / 2).max(12));
+            window.set_margin(Edge::Bottom, PANEL_MARGIN);
+            window.set_margin(Edge::Left, ((mw - width) / 2).max(PANEL_MARGIN));
         }
         Position::Center => {
             window.set_anchor(Edge::Left, true);
             window.set_anchor(Edge::Top, true);
-            window.set_margin(Edge::Left, ((mw - width) / 2).max(12));
-            window.set_margin(Edge::Top, ((mh - height) / 2).max(12));
+            window.set_margin(Edge::Left, ((mw - width) / 2).max(PANEL_MARGIN));
+            window.set_margin(Edge::Top, ((mh - height) / 2).max(PANEL_MARGIN));
         }
     }
 }

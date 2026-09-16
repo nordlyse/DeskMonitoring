@@ -12,12 +12,6 @@ pub enum Position {
     Center,
 }
 
-impl Position {
-    pub fn is_horizontal(self) -> bool {
-        matches!(self, Self::Top | Self::Bottom)
-    }
-}
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PaletteKind {
