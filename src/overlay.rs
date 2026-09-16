@@ -17,6 +17,7 @@ pub fn apply_window_chrome(window: &ApplicationWindow) {
     window.set_resizable(false);
     window.set_title(Some("Desk Monitor"));
     window.add_css_class("desk-monitor");
+    window.add_css_class("undecorated");
     window.connect_realize(|window| {
         if let Some(surface) = window.surface() {
             surface.set_opaque_region(None);

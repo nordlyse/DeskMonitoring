@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::f64::consts::PI;
 
 use chrono::Local;
-use gtk::cairo::{Context, LinearGradient};
+use gtk::cairo::Context;
 
 use crate::config::Position;
 use crate::metrics::{format_bps, format_bytes};
@@ -56,7 +56,7 @@ fn paint_vertical(cr: &Context, w: f64, h: f64, snapshot: &Snapshot, palette: Pa
         y + 26.0,
         13.0,
         &format!("{:.0}%", snapshot.cpu_pct),
-        palette.text,
+        palette.neon,
         false,
     );
     y += gauge_h + 10.0;
@@ -228,16 +228,16 @@ fn paint_gauge(cr: &Context, x: f64, y: f64, size: f64, pct: f32, palette: Palet
     let cy = y + size / 2.0;
     let r = (size / 2.0 - 6.0).max(18.0);
     cr.set_line_width(8.0);
-    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.55);
+    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.85);
     cr.arc(cx, cy, r, 0.75 * PI, 2.25 * PI);
     cr.stroke().ok();
 
     let t = (pct as f64 / 100.0).clamp(0.0, 1.0);
     let end = 0.75 * PI + t * 1.5 * PI;
-    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.95);
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
     cr.arc(cx, cy, r, 0.75 * PI, end);
     cr.stroke().ok();
-    text_center(cr, cx, cy + 5.0, 14.0, &format!("{:.0}%", pct), palette.text);
+    text_center(cr, cx, cy + 5.0, 14.0, &format!("{:.0}%", pct), palette.neon);
 }
 
 fn paint_sparkline(
@@ -258,12 +258,12 @@ fn paint_sparkline(
         cr.line_to(x + w, y + h);
         cr.line_to(x, y + h);
         cr.close_path();
-        cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.16);
+        cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.28);
         cr.fill().ok();
         path_series(cr, x, y, w, h, data, 100.0);
     }
-    cr.set_line_width(1.6);
-    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.95);
+    cr.set_line_width(2.4);
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
     cr.stroke().ok();
 }
 
@@ -287,15 +287,15 @@ fn paint_dual_area(
     cr.line_to(x + w, y + h);
     cr.line_to(x, y + h);
     cr.close_path();
-    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.18);
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.28);
     cr.fill().ok();
     path_series(cr, x, y, w, h, down, max);
-    cr.set_line_width(1.5);
-    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.95);
+    cr.set_line_width(2.4);
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
     cr.stroke().ok();
     path_series(cr, x, y, w, h, up, max);
-    cr.set_line_width(1.4);
-    cr.set_source_rgba(palette.warn.r, palette.warn.g, palette.warn.b, 0.9);
+    cr.set_line_width(2.2);
+    cr.set_source_rgba(palette.warn.r, palette.warn.g, palette.warn.b, 1.0);
     cr.stroke().ok();
 }
 
@@ -316,15 +316,17 @@ fn path_series(cr: &Context, x: f64, y: f64, w: f64, h: f64, data: &VecDeque<f32
 
 fn paint_disk_bar(cr: &Context, x: f64, y: f64, w: f64, snapshot: &Snapshot, palette: Palette) {
     let used_pct = snapshot.disk_used_pct() as f64 / 100.0;
-    rounded_rect(cr, x, y, w, 18.0, 6.0);
-    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.45);
-    cr.fill().ok();
-    rounded_rect(cr, x, y, (w * used_pct).max(2.0), 18.0, 6.0);
-    let grad = LinearGradient::new(x, y, x + w, y);
-    grad.add_color_stop_rgba(0.0, palette.neon.r, palette.neon.g, palette.neon.b, 0.55);
-    grad.add_color_stop_rgba(1.0, palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
-    cr.set_source(&grad).ok();
-    cr.fill().ok();
+    cr.set_line_width(8.0);
+    cr.set_line_cap(gtk::cairo::LineCap::Round);
+    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.9);
+    cr.move_to(x, y + 9.0);
+    cr.line_to(x + w, y + 9.0);
+    cr.stroke().ok();
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
+    cr.move_to(x, y + 9.0);
+    cr.line_to(x + (w * used_pct).max(2.0), y + 9.0);
+    cr.stroke().ok();
+    cr.set_line_cap(gtk::cairo::LineCap::Butt);
     text(
         cr,
         x,
@@ -355,11 +357,11 @@ fn paint_mini_disk(cr: &Context, x: f64, y: f64, w: f64, h: f64, snapshot: &Snap
 
 fn paint_pie(cr: &Context, cx: f64, cy: f64, r: f64, used_pct: f32, palette: Palette) {
     let used = (used_pct as f64 / 100.0).clamp(0.0, 1.0) * 2.0 * PI;
-    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.5);
+    cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.9);
     cr.move_to(cx, cy);
     cr.arc(cx, cy, r, 0.0, 2.0 * PI);
     cr.fill().ok();
-    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 0.95);
+    cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
     cr.move_to(cx, cy);
     cr.arc(cx, cy, r, -PI / 2.0, -PI / 2.0 + used);
     cr.fill().ok();
@@ -391,7 +393,7 @@ fn paint_mail_table(
             y + 40.0,
             18.0,
             &values[i].to_string(),
-            palette.text,
+            palette.neon,
         );
     }
 }
@@ -444,21 +446,6 @@ fn paint_weather(cr: &Context, x: f64, y: f64, _w: f64, snapshot: &Snapshot, pal
     if !meta.is_empty() {
         text(cr, x, y + 50.0, 12.0, &meta.join("   "), palette.muted, false);
     }
-}
-
-fn rounded_rect(cr: &Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    cr.new_path();
-    cr.move_to(x + r, y);
-    cr.line_to(x + w - r, y);
-    cr.curve_to(x + w, y, x + w, y, x + w, y + r);
-    cr.line_to(x + w, y + h - r);
-    cr.curve_to(x + w, y + h, x + w, y + h, x + w - r, y + h);
-    cr.line_to(x + r, y + h);
-    cr.curve_to(x, y + h, x, y + h, x, y + h - r);
-    cr.line_to(x, y + r);
-    cr.curve_to(x, y, x, y, x + r, y);
-    cr.close_path();
 }
 
 fn text(cr: &Context, x: f64, y: f64, size: f64, value: &str, color: Rgba, bold: bool) {

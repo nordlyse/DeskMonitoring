@@ -29,43 +29,43 @@ impl Palette {
         match kind {
             PaletteKind::Matrix => Self {
                 kind,
-                neon: Rgba::rgb(0.10, 1.00, 0.38),
-                dim: Rgba::rgb(0.05, 0.42, 0.18),
-                text: Rgba::rgb(0.78, 1.00, 0.84),
-                muted: Rgba::rgb(0.35, 0.72, 0.48),
-                warn: Rgba::rgb(1.00, 0.82, 0.20),
+                neon: Rgba::rgb(0.00, 0.78, 0.22),
+                dim: Rgba::rgb(0.02, 0.28, 0.10),
+                text: Rgba::rgb(0.22, 0.78, 0.38),
+                muted: Rgba::rgb(0.08, 0.48, 0.22),
+                warn: Rgba::rgb(0.88, 0.62, 0.04),
             },
             PaletteKind::Turquoise => Self {
                 kind,
-                neon: Rgba::rgb(0.18, 0.95, 0.88),
-                dim: Rgba::rgb(0.08, 0.38, 0.40),
-                text: Rgba::rgb(0.82, 1.00, 0.98),
-                muted: Rgba::rgb(0.40, 0.78, 0.76),
-                warn: Rgba::rgb(1.00, 0.78, 0.32),
+                neon: Rgba::rgb(0.00, 0.68, 0.66),
+                dim: Rgba::rgb(0.00, 0.26, 0.28),
+                text: Rgba::rgb(0.04, 0.64, 0.62),
+                muted: Rgba::rgb(0.02, 0.44, 0.44),
+                warn: Rgba::rgb(0.86, 0.54, 0.06),
             },
             PaletteKind::Blue => Self {
                 kind,
-                neon: Rgba::rgb(0.25, 0.62, 1.00),
-                dim: Rgba::rgb(0.08, 0.22, 0.48),
-                text: Rgba::rgb(0.82, 0.92, 1.00),
-                muted: Rgba::rgb(0.45, 0.62, 0.90),
-                warn: Rgba::rgb(1.00, 0.72, 0.28),
+                neon: Rgba::rgb(0.04, 0.38, 0.86),
+                dim: Rgba::rgb(0.02, 0.14, 0.36),
+                text: Rgba::rgb(0.18, 0.48, 0.86),
+                muted: Rgba::rgb(0.08, 0.30, 0.62),
+                warn: Rgba::rgb(0.88, 0.52, 0.06),
             },
             PaletteKind::Pink => Self {
                 kind,
-                neon: Rgba::rgb(1.00, 0.38, 0.78),
-                dim: Rgba::rgb(0.42, 0.10, 0.32),
-                text: Rgba::rgb(1.00, 0.88, 0.96),
-                muted: Rgba::rgb(0.86, 0.52, 0.74),
-                warn: Rgba::rgb(1.00, 0.86, 0.28),
+                neon: Rgba::rgb(0.86, 0.12, 0.48),
+                dim: Rgba::rgb(0.32, 0.02, 0.16),
+                text: Rgba::rgb(0.86, 0.28, 0.52),
+                muted: Rgba::rgb(0.62, 0.10, 0.34),
+                warn: Rgba::rgb(0.88, 0.62, 0.06),
             },
             PaletteKind::Yellow => Self {
                 kind,
-                neon: Rgba::rgb(1.00, 0.88, 0.18),
-                dim: Rgba::rgb(0.42, 0.34, 0.04),
-                text: Rgba::rgb(1.00, 0.97, 0.78),
-                muted: Rgba::rgb(0.86, 0.78, 0.38),
-                warn: Rgba::rgb(1.00, 0.45, 0.22),
+                neon: Rgba::rgb(0.86, 0.64, 0.00),
+                dim: Rgba::rgb(0.32, 0.22, 0.00),
+                text: Rgba::rgb(0.82, 0.66, 0.08),
+                muted: Rgba::rgb(0.58, 0.44, 0.02),
+                warn: Rgba::rgb(0.86, 0.32, 0.04),
             },
         }
     }
@@ -74,6 +74,8 @@ impl Palette {
 pub fn window_css() -> &'static str {
     r#"
 window.desk-monitor,
+window.desk-monitor.csd,
+window.desk-monitor.background,
 window.desk-monitor box,
 window.desk-monitor drawingarea,
 window.desk-monitor .desk-monitor-host,
@@ -82,7 +84,10 @@ window.desk-monitor .desk-monitor-canvas {
   background-color: transparent;
   box-shadow: none;
   border: none;
+  border-radius: 0;
   outline: none;
+  margin: 0;
+  padding: 0;
 }
 window.desk-setup {
   background-color: #101418;
