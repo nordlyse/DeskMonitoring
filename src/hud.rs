@@ -19,6 +19,7 @@ pub fn paint(cr: &Context, width: i32, height: i32, snapshot: &Snapshot, config:
     cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
     cr.paint().ok();
     cr.set_operator(gtk::cairo::Operator::Over);
+    paint_wash(cr, w, h);
     paint_vertical(cr, w, h, snapshot, config, palette);
 }
 
@@ -33,6 +34,12 @@ pub fn hit_settings(x: f64, y: f64, width: i32, _position: Position) -> bool {
 
 fn header_origin() -> (f64, f64) {
     (22.0, 28.0)
+}
+
+fn paint_wash(cr: &Context, w: f64, h: f64) {
+    rounded_rect(cr, 4.0, 4.0, w - 8.0, h - 8.0, 12.0);
+    cr.set_source_rgba(0.06, 0.06, 0.07, 0.26);
+    cr.fill().ok();
 }
 
 #[derive(Clone, Copy)]
@@ -444,6 +451,21 @@ fn paint_weather(cr: &Context, x: f64, y: f64, _w: f64, snapshot: &Snapshot, pal
     if !meta.is_empty() {
         text(cr, x, y + 50.0, 12.0, &meta.join("   "), palette.muted, false);
     }
+}
+
+fn rounded_rect(cr: &Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+    let r = r.min(w / 2.0).min(h / 2.0);
+    cr.new_path();
+    cr.move_to(x + r, y);
+    cr.line_to(x + w - r, y);
+    cr.curve_to(x + w, y, x + w, y, x + w, y + r);
+    cr.line_to(x + w, y + h - r);
+    cr.curve_to(x + w, y + h, x + w, y + h, x + w - r, y + h);
+    cr.line_to(x + r, y + h);
+    cr.curve_to(x, y + h, x, y + h, x, y + h - r);
+    cr.line_to(x, y + r);
+    cr.curve_to(x, y, x, y, x + r, y);
+    cr.close_path();
 }
 
 fn text(cr: &Context, x: f64, y: f64, size: f64, value: &str, color: Rgba, bold: bool) {
