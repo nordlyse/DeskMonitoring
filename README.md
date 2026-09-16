@@ -4,7 +4,7 @@ A Conky-style desktop overlay built with **Rust** and **GTK4**. It draws a trans
 
 ## Setup
 
-Every launch asks for settings before the overlay starts. Saved values are filled in when present. Later, click **SETTINGS** on the overlay (or right-click it) to change color, position, visible panels, mail, or calendar:
+The first launch asks for settings. After that the overlay starts with the saved layout. Change it any time after install: right-click the overlay (or click **SETTINGS**), pick a color, or open the full settings window. On macOS the menu bar also has **Settings** (`Cmd+,`).
 
 - **Panel position:** left, right, top, bottom, or center
 - **Color palette:** Matrix green, turquoise, blue, pink, or yellow

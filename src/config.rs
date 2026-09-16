@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex, OnceLock};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -149,5 +150,27 @@ pub fn write_config(config: &Config) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let raw = toml::to_string_pretty(config).map_err(|e| e.to_string())?;
-    std::fs::write(path, raw).map_err(|e| e.to_string())
+    std::fs::write(path, raw).map_err(|e| e.to_string())?;
+    store_live(config);
+    Ok(())
+}
+
+static LIVE: OnceLock<Arc<Mutex<Config>>> = OnceLock::new();
+
+pub fn live_slot() -> Arc<Mutex<Config>> {
+    LIVE.get_or_init(|| Arc::new(Mutex::new(load_config().unwrap_or_default())))
+        .clone()
+}
+
+pub fn store_live(config: &Config) {
+    if let Ok(mut guard) = live_slot().lock() {
+        *guard = config.clone();
+    }
+}
+
+pub fn current_config() -> Config {
+    live_slot()
+        .lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|_| load_config().unwrap_or_default())
 }

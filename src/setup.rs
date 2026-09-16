@@ -5,7 +5,6 @@ use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, CheckButton, Entry, Label, Orientation};
 
 use crate::config::{load_config, write_config, Config, PaletteKind, Panels, Position};
-use crate::overlay;
 use crate::window::show_monitor;
 
 pub fn show_setup(app: &Application) {
@@ -249,14 +248,8 @@ pub fn show_settings(app: &Application, live: Option<Arc<Mutex<Config>>>) {
             let Some(app) = window.application() else {
                 return;
             };
-            if let Some(slot) = &live {
-                if let Ok(mut guard) = slot.lock() {
-                    *guard = config.clone();
-                }
-            }
-            if let Some(monitor) = find_monitor(&app) {
-                overlay::place_overlay(&monitor, &config);
-                monitor.queue_draw();
+            if find_monitor(&app).is_some() {
+                crate::window::refresh_overlay(&app);
                 window.close();
                 return;
             }

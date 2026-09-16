@@ -2,11 +2,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use gtk::gdk;
+use gtk::gio;
 use gtk::glib::{self, ControlFlow};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, DrawingArea, Orientation};
 
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::hud;
 use crate::metrics::{self, Collector};
 use crate::overlay;
@@ -21,6 +22,9 @@ pub fn show_monitor(app: &Application, config: Config) {
         }
     }
 
+    config::store_live(&config);
+    let live = config::live_slot();
+
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Desk Monitor")
@@ -29,7 +33,6 @@ pub fn show_monitor(app: &Application, config: Config) {
     overlay::place_overlay(&window, &config);
 
     let snapshot = Arc::new(Mutex::new(Snapshot::default()));
-    let live = Arc::new(Mutex::new(config.clone()));
     let mut collector = Collector::add();
     collector.refresh_local(&snapshot);
     metrics::spawn_remote_loop(live.clone(), snapshot.clone());
@@ -65,12 +68,30 @@ pub fn show_monitor(app: &Application, config: Config) {
     window.present();
 }
 
+pub fn refresh_overlay(app: &Application) {
+    let config = config::current_config();
+    for window in app.windows() {
+        if window.has_css_class("desk-monitor") {
+            if let Ok(monitor) = window.downcast::<ApplicationWindow>() {
+                overlay::place_overlay(&monitor, &config);
+                monitor.queue_draw();
+            }
+        }
+    }
+}
+
 fn attach_pointer(window: &ApplicationWindow, area: &DrawingArea, live: Arc<Mutex<Config>>) {
+    let menu_model = gio_overlay_menu();
+    let popover = gtk::PopoverMenu::from_model(Some(&menu_model));
+    popover.set_parent(area);
+    popover.set_has_arrow(false);
+
     let drag = gtk::GestureClick::new();
     drag.set_button(gdk::BUTTON_PRIMARY);
     let window_weak = window.downgrade();
     let area_click = area.clone();
     let live_click = live.clone();
+    let popover_ctrl = popover.clone();
     drag.connect_pressed(move |gesture, n_press, x, y| {
         if n_press != 1 {
             return;
@@ -78,6 +99,14 @@ fn attach_pointer(window: &ApplicationWindow, area: &DrawingArea, live: Arc<Mute
         let Some(window) = window_weak.upgrade() else {
             return;
         };
+        if gesture
+            .current_event_state()
+            .contains(gdk::ModifierType::CONTROL_MASK)
+        {
+            popover_ctrl.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+            popover_ctrl.popup();
+            return;
+        }
         let config = live_click.lock().map(|guard| guard.clone()).unwrap_or_default();
         if hud::hit_settings(x, y, area_click.width(), config.position) {
             if let Some(app) = window.application() {
@@ -103,17 +132,26 @@ fn attach_pointer(window: &ApplicationWindow, area: &DrawingArea, live: Arc<Mute
 
     let menu = gtk::GestureClick::new();
     menu.set_button(gdk::BUTTON_SECONDARY);
-    let window_weak = window.downgrade();
-    menu.connect_pressed(move |_, n_press, _, _| {
+    let popover_click = popover.clone();
+    menu.connect_pressed(move |_, n_press, x, y| {
         if n_press != 1 {
             return;
         }
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        if let Some(app) = window.application() {
-            setup::show_settings(&app, Some(live.clone()));
-        }
+        popover_click.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+        popover_click.popup();
     });
     area.add_controller(menu);
+}
+
+fn gio_overlay_menu() -> gio::Menu {
+    let menu = gio::Menu::new();
+    menu.append(Some("Settings"), Some("app.settings"));
+    let colors = gio::Menu::new();
+    colors.append(Some("Matrix green"), Some("app.set-palette::matrix"));
+    colors.append(Some("Turquoise"), Some("app.set-palette::turquoise"));
+    colors.append(Some("Blue"), Some("app.set-palette::blue"));
+    colors.append(Some("Pink"), Some("app.set-palette::pink"));
+    colors.append(Some("Yellow"), Some("app.set-palette::yellow"));
+    menu.append_submenu(Some("Color"), &colors);
+    menu
 }
