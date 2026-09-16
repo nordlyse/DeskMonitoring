@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -207,8 +208,18 @@ def add_icon() -> None:
 
 def add_dmg() -> Path:
     dmg = ROOT / "dist" / "DeskMonitor-macos.dmg"
+    rw = ROOT / "dist" / "DeskMonitor-macos.rw.dmg"
+    stage = ROOT / "dist" / "dmg-root"
+    mount = Path("/Volumes/Desk Monitor")
+    shutil.rmtree(stage, ignore_errors=True)
     if dmg.exists():
         dmg.unlink()
+    if rw.exists():
+        rw.unlink()
+    detach_desk_volumes()
+    stage.mkdir(parents=True)
+    shutil.copytree(APP, stage / APP.name, symlinks=True)
+    os.symlink("/Applications", stage / "Applications")
     run(
         [
             "hdiutil",
@@ -216,15 +227,88 @@ def add_dmg() -> Path:
             "-volname",
             "Desk Monitor",
             "-srcfolder",
-            str(APP),
+            str(stage),
             "-ov",
+            "-fs",
+            "HFS+",
             "-format",
-            "UDZO",
-            str(dmg),
+            "UDRW",
+            str(rw),
         ],
         stdout=subprocess.DEVNULL,
     )
+    run(
+        [
+            "hdiutil",
+            "attach",
+            "-readwrite",
+            "-noverify",
+            "-noautoopen",
+            "-mountpoint",
+            str(mount),
+            str(rw),
+        ],
+        stdout=subprocess.DEVNULL,
+    )
+    time.sleep(1)
+    arrange_install_icons()
+    subprocess.run(["sync"], check=False)
+    detach_volume(mount)
+    run(
+        ["hdiutil", "convert", str(rw), "-format", "UDZO", "-o", str(dmg)],
+        stdout=subprocess.DEVNULL,
+    )
+    rw.unlink(missing_ok=True)
+    shutil.rmtree(stage, ignore_errors=True)
     return dmg
+
+
+def detach_desk_volumes() -> None:
+    volumes = Path("/Volumes")
+    if not volumes.is_dir():
+        return
+    for path in sorted(volumes.iterdir()):
+        if path.name.startswith("Desk Monitor"):
+            subprocess.run(["hdiutil", "detach", str(path), "-force"], check=False)
+            time.sleep(0.4)
+
+
+def arrange_install_icons() -> None:
+    script = """
+tell application "Finder"
+  tell disk "Desk Monitor"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {220, 140, 780, 500}
+    set viewOptions to the icon view options of container window
+    set arrangement of viewOptions to not arranged
+    set icon size of viewOptions to 128
+    delay 0.4
+    set position of item "Desk Monitor.app" of container window to {140, 180}
+    try
+      set position of item "Applications" of container window to {420, 180}
+    end try
+    close
+    open
+    update without registering applications
+    delay 1
+  end tell
+end tell
+"""
+    result = subprocess.run(["osascript", "-e", script], text=True, capture_output=True)
+    if result.returncode != 0:
+        print(result.stderr.strip() or "Finder icon layout skipped.", file=sys.stderr)
+
+
+def detach_volume(mount: Path) -> None:
+    for _ in range(8):
+        done = subprocess.run(["hdiutil", "detach", str(mount), "-quiet"])
+        if done.returncode == 0:
+            return
+        time.sleep(1)
+    run(["hdiutil", "detach", str(mount), "-force"])
 
 
 def main() -> None:

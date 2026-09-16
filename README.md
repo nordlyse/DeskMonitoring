@@ -2,16 +2,16 @@
 
 A Conky-style desktop overlay built with **Rust** and **GTK4**. It draws a transparent, neon HUD with live charts for CPU, memory, disk, network, mail, today's calendar, and weather for the nearest city.
 
-## First setup
+## Setup
 
-On the first launch the app asks:
+Every launch asks for settings before the overlay starts. Saved values are filled in when present, so you can confirm what will run or change them:
 
 - **Panel position:** left, right, top, bottom, or center
 - **Color palette:** Matrix green, turquoise, blue, pink, or yellow
 - Optional IMAP host for incoming / outgoing / total / unread mail counts
 - Optional `.ics` file or folder for today's calendar events
 
-Settings are stored in `~/.config/desk-monitoring/config.toml` (or the platform config directory). Remove that file to run setup again.
+Settings are stored in `~/.config/desk-monitoring/config.toml` (or the platform config directory).
 
 Drag the panel to move it. On Linux Wayland, build with the `layer-shell` feature so the chosen edge/center is applied as a desktop overlay.
 
@@ -37,7 +37,7 @@ GitHub Actions builds installers on tag `v*` or from **Actions → Package → R
 
 | Platform | Artifact | Notes |
 | --- | --- | --- |
-| macOS | `DeskMonitor-macos-arm64.dmg` / `DeskMonitor-macos-x64.dmg` | `.app` plus bundled GTK dylibs |
+| macOS | `DeskMonitor-macos-arm64.dmg` / `DeskMonitor-macos-x64.dmg` | Open the disk image and drag **Desk Monitor** onto **Applications** |
 | Linux | `DeskMonitor-linux-x64` `.deb` | Needs GTK 4 from the distro (`libgtk-4-1`) |
 | Windows | `DeskMonitor-windows-x64.zip` | Run `DeskMonitor.bat`; GTK DLLs are inside the zip |
 
@@ -57,7 +57,7 @@ bash packaging/package-linux-docker.sh
 powershell -File packaging/package-windows.ps1
 ```
 
-macOS output is `dist/Desk Monitor.app` and `dist/DeskMonitor-macos.dmg`.
+macOS output is `dist/macos/Desk Monitor.app` and `dist/DeskMonitor-macos.dmg` (drag the app onto Applications).
 Linux output is `dist/*.deb`.
 Windows output is `dist/DeskMonitor-windows.zip`.
 

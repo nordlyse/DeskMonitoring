@@ -1,16 +1,14 @@
 use gtk::gdk;
+use gtk::prelude::*;
 use gtk::{Application, CssProvider};
 
-use crate::config::load_config;
 use crate::setup;
 use crate::theme;
-use crate::window as monitor;
 
 pub fn on_activate(app: &Application) {
     insert_stylesheet();
-    match load_config() {
-        Some(config) => monitor::show_monitor(app, config),
-        None => setup::show_setup(app),
+    if app.windows().is_empty() {
+        setup::show_setup(app);
     }
 }
 

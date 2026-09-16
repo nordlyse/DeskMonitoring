@@ -2,10 +2,12 @@ use gtk::glib::clone;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, CheckButton, Entry, Label, Orientation};
 
-use crate::config::{write_config, Config, PaletteKind, Position};
+use crate::config::{load_config, write_config, Config, PaletteKind, Position};
 use crate::window::show_monitor;
 
 pub fn show_setup(app: &Application) {
+    let saved = load_config();
+    let config = saved.clone().unwrap_or_default();
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Desk Monitor setup")
@@ -26,9 +28,11 @@ pub fn show_setup(app: &Application) {
     title.set_halign(gtk::Align::Start);
     root.append(&title);
 
-    let intro = Label::new(Some(
-        "Choose panel position and color palette. Mail and calendar are optional.",
-    ));
+    let intro = Label::new(Some(if saved.is_some() {
+        "Saved settings are filled in. Confirm or change them before the overlay starts."
+    } else {
+        "Choose panel position and color palette. Mail and calendar are optional."
+    }));
     intro.set_wrap(true);
     intro.set_halign(gtk::Align::Start);
     root.append(&intro);
@@ -44,7 +48,13 @@ pub fn show_setup(app: &Application) {
     pos_top.set_group(Some(&pos_left));
     pos_bottom.set_group(Some(&pos_left));
     pos_center.set_group(Some(&pos_left));
-    pos_right.set_active(true);
+    match config.position {
+        Position::Left => pos_left.set_active(true),
+        Position::Right => pos_right.set_active(true),
+        Position::Top => pos_top.set_active(true),
+        Position::Bottom => pos_bottom.set_active(true),
+        Position::Center => pos_center.set_active(true),
+    }
     for btn in [&pos_left, &pos_right, &pos_top, &pos_bottom, &pos_center] {
         pos_box.append(btn);
     }
@@ -61,7 +71,13 @@ pub fn show_setup(app: &Application) {
     pal_blue.set_group(Some(&pal_matrix));
     pal_pink.set_group(Some(&pal_matrix));
     pal_yellow.set_group(Some(&pal_matrix));
-    pal_matrix.set_active(true);
+    match config.palette {
+        PaletteKind::Matrix => pal_matrix.set_active(true),
+        PaletteKind::Turquoise => pal_turquoise.set_active(true),
+        PaletteKind::Blue => pal_blue.set_active(true),
+        PaletteKind::Pink => pal_pink.set_active(true),
+        PaletteKind::Yellow => pal_yellow.set_active(true),
+    }
     for btn in [
         &pal_matrix,
         &pal_turquoise,
@@ -74,16 +90,21 @@ pub fn show_setup(app: &Application) {
     root.append(&pal_box);
 
     root.append(&section_label("Mail IMAP (optional)"));
-    let imap_host = add_field(&root, "Host", "imap.example.com", "");
-    let imap_port = add_field(&root, "Port", "993", "993");
-    let imap_user = add_field(&root, "Username", "you@example.com", "");
-    let imap_pass = add_field(&root, "Password", "", "");
+    let imap_host = add_field(&root, "Host", "imap.example.com", &config.imap_host);
+    let imap_port = add_field(&root, "Port", "993", &config.imap_port.to_string());
+    let imap_user = add_field(&root, "Username", "you@example.com", &config.imap_user);
+    let imap_pass = add_field(&root, "Password", "", &config.imap_password);
     imap_pass.set_visibility(false);
-    let imap_inbox = add_field(&root, "Inbox mailbox", "INBOX", "INBOX");
-    let imap_sent = add_field(&root, "Sent mailbox", "Sent", "Sent");
+    let imap_inbox = add_field(&root, "Inbox mailbox", "INBOX", &config.imap_inbox);
+    let imap_sent = add_field(&root, "Sent mailbox", "Sent", &config.imap_sent);
 
     root.append(&section_label("Calendar .ics path (optional)"));
-    let calendar = add_field(&root, "File or folder", "/path/to/calendar.ics", "");
+    let calendar = add_field(
+        &root,
+        "File or folder",
+        "/path/to/calendar.ics",
+        &config.calendar_ics,
+    );
 
     let error = Label::new(None);
     error.add_css_class("error");
