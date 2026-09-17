@@ -183,8 +183,9 @@ def copy_gtk_data() -> None:
 
 def add_icon() -> None:
     png = ROOT / "packaging" / "desk-monitoring.png"
+    run([sys.executable, str(ROOT / "packaging" / "icon.py")])
     if not png.is_file():
-        run([sys.executable, str(ROOT / "packaging" / "icon.py")])
+        raise SystemExit("missing packaging/desk-monitoring.png")
     iconset = DIST / "AppIcon.iconset"
     if iconset.exists():
         shutil.rmtree(iconset)
