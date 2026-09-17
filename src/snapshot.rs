@@ -27,6 +27,8 @@ pub struct Snapshot {
     pub weather_desc: String,
     pub weather_humidity: Option<f32>,
     pub weather_wind: Option<f32>,
+    pub weather_code: Option<i32>,
+    pub weather_is_day: bool,
 }
 
 impl Default for Snapshot {
@@ -54,6 +56,8 @@ impl Default for Snapshot {
             weather_desc: String::new(),
             weather_humidity: None,
             weather_wind: None,
+            weather_code: None,
+            weather_is_day: true,
         }
     }
 }

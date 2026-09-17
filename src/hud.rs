@@ -20,6 +20,9 @@ pub fn paint(cr: &Context, width: i32, height: i32, snapshot: &Snapshot, config:
     cr.paint().ok();
     cr.set_operator(gtk::cairo::Operator::Over);
     paint_wash(cr, w, h);
+    rounded_rect(cr, 4.0, 4.0, w - 8.0, h - 8.0, 12.0);
+    cr.clip();
+    crate::weather_fx::paint(cr, w, h, snapshot, palette);
     paint_vertical(cr, w, h, snapshot, config, palette);
 }
 
@@ -233,15 +236,19 @@ fn paint_gauge(cr: &Context, x: f64, y: f64, size: f64, pct: f32, palette: Palet
     let cy = y + size / 2.0;
     let r = (size / 2.0 - 6.0).max(18.0);
     cr.set_line_width(8.0);
+    cr.set_line_cap(gtk::cairo::LineCap::Round);
     cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.85);
+    cr.new_path();
     cr.arc(cx, cy, r, 0.75 * PI, 2.25 * PI);
     cr.stroke().ok();
 
     let t = (pct as f64 / 100.0).clamp(0.0, 1.0);
     let end = 0.75 * PI + t * 1.5 * PI;
     cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
+    cr.new_path();
     cr.arc(cx, cy, r, 0.75 * PI, end);
     cr.stroke().ok();
+    cr.set_line_cap(gtk::cairo::LineCap::Butt);
     text_center(cr, cx, cy + 5.0, 14.0, &format!("{:.0}%", pct), palette.neon);
 }
 
@@ -363,12 +370,16 @@ fn paint_mini_disk(cr: &Context, x: f64, y: f64, w: f64, h: f64, snapshot: &Snap
 fn paint_pie(cr: &Context, cx: f64, cy: f64, r: f64, used_pct: f32, palette: Palette) {
     let used = (used_pct as f64 / 100.0).clamp(0.0, 1.0) * 2.0 * PI;
     cr.set_source_rgba(palette.dim.r, palette.dim.g, palette.dim.b, 0.9);
+    cr.new_path();
     cr.move_to(cx, cy);
     cr.arc(cx, cy, r, 0.0, 2.0 * PI);
+    cr.close_path();
     cr.fill().ok();
     cr.set_source_rgba(palette.neon.r, palette.neon.g, palette.neon.b, 1.0);
+    cr.new_path();
     cr.move_to(cx, cy);
     cr.arc(cx, cy, r, -PI / 2.0, -PI / 2.0 + used);
+    cr.close_path();
     cr.fill().ok();
 }
 

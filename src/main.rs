@@ -8,6 +8,7 @@ mod macos_place;
 mod setup;
 mod snapshot;
 mod theme;
+mod weather_fx;
 mod window;
 
 use gtk::prelude::*;

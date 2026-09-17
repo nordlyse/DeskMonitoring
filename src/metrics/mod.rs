@@ -111,6 +111,8 @@ pub fn apply_weather(
     desc: String,
     humidity: Option<f32>,
     wind: Option<f32>,
+    code: Option<i32>,
+    is_day: bool,
 ) {
     if let Ok(mut snap) = snapshot.lock() {
         snap.weather_city = city;
@@ -118,6 +120,8 @@ pub fn apply_weather(
         snap.weather_desc = desc;
         snap.weather_humidity = humidity;
         snap.weather_wind = wind;
+        snap.weather_code = code;
+        snap.weather_is_day = is_day;
     }
 }
 

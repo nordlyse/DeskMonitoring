@@ -22,6 +22,7 @@ struct OpenMeteoCurrent {
     weather_code: Option<i32>,
     wind_speed_10m: Option<f32>,
     relative_humidity_2m: Option<f32>,
+    is_day: Option<i32>,
 }
 
 pub async fn refresh(snapshot: &SharedSnapshot) {
@@ -33,6 +34,8 @@ pub async fn refresh(snapshot: &SharedSnapshot) {
             data.2,
             data.3,
             data.4,
+            data.5,
+            data.6,
         ),
         Err(_) => apply_weather(
             snapshot,
@@ -41,11 +44,13 @@ pub async fn refresh(snapshot: &SharedSnapshot) {
             String::new(),
             None,
             None,
+            None,
+            true,
         ),
     }
 }
 
-async fn load_weather() -> Result<(String, Option<f32>, String, Option<f32>, Option<f32>), String> {
+async fn load_weather() -> Result<(String, Option<f32>, String, Option<f32>, Option<f32>, Option<i32>, bool), String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
@@ -71,7 +76,7 @@ async fn load_weather() -> Result<(String, Option<f32>, String, Option<f32>, Opt
         .unwrap_or_else(|| "Nearest city".to_string());
 
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m"
+        "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,is_day"
     );
     let forecast: OpenMeteo = client
         .get(url)
@@ -86,13 +91,16 @@ async fn load_weather() -> Result<(String, Option<f32>, String, Option<f32>, Opt
         weather_code: None,
         wind_speed_10m: None,
         relative_humidity_2m: None,
+        is_day: None,
     });
     Ok((
         city,
         current.temperature_2m,
-        weather_text(current.weather_code.unwrap_or(0)),
+        weather_text(current.weather_code.unwrap_or(-1)),
         current.relative_humidity_2m,
         current.wind_speed_10m,
+        current.weather_code,
+        current.is_day != Some(0),
     ))
 }
 

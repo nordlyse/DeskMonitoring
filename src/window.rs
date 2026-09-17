@@ -59,8 +59,12 @@ pub fn show_monitor(app: &Application, config: Config) {
     let metric_area = area.clone();
     let metric_snapshot = snapshot.clone();
     let mut collector = collector;
-    glib::timeout_add_local(Duration::from_secs(1), move || {
-        collector.refresh_local(&metric_snapshot);
+    let mut ticks = 0u32;
+    glib::timeout_add_local(Duration::from_millis(33), move || {
+        ticks = ticks.wrapping_add(1);
+        if ticks % 30 == 0 {
+            collector.refresh_local(&metric_snapshot);
+        }
         metric_area.queue_draw();
         ControlFlow::Continue
     });
