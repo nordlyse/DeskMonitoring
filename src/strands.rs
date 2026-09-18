@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 use std::sync::OnceLock;
 use std::time::Instant;
 
-use gtk::cairo::{Context, Gradient, LinearGradient};
+use gtk::cairo::{Context, LinearGradient};
 
 use crate::theme::{Palette, Rgba};
 
@@ -30,9 +30,9 @@ pub fn paint(cr: &Context, w: f64, h: f64, palette: Palette) {
             continue;
         }
         let base = i as f64 / STRAND_COUNT as f64 + t * 0.035;
-        paint_ribbon(cr, &pts, 6.5, &stops(palette.neon, base), 0.04);
-        paint_ribbon(cr, &pts, 2.8, &stops(palette.neon, base), 0.09);
-        paint_ribbon(cr, &pts, 1.05, &stops(palette.neon, base), 0.28);
+        paint_ribbon(cr, &pts, 65.0, &stops(palette.neon, base), 0.04);
+        paint_ribbon(cr, &pts, 28.0, &stops(palette.neon, base), 0.09);
+        paint_ribbon(cr, &pts, 10.5, &stops(palette.neon, base), 0.28);
     }
 }
 
