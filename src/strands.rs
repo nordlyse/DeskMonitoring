@@ -16,10 +16,10 @@ const SCALE: f64 = 1.35;
 const INTENSITY: f64 = 0.68;
 
 const SAMPLE: [Rgba; 4] = [
-    Rgba::rgb(1.00, 0.26, 0.26),
-    Rgba::rgb(0.49, 0.23, 0.93),
-    Rgba::rgb(0.02, 0.71, 0.83),
-    Rgba::rgb(0.92, 0.70, 0.03),
+    Rgba::rgb(1.00, 0.18, 0.16),
+    Rgba::rgb(0.64, 0.16, 0.86),
+    Rgba::rgb(0.22, 0.58, 0.76),
+    Rgba::rgb(1.00, 0.58, 0.04),
 ];
 
 pub fn paint(cr: &Context, w: f64, h: f64, palette: Palette) {
