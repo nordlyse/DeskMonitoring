@@ -62,16 +62,9 @@ fn install_app_actions(app: &Application) {
     });
     app.add_action(&palette);
 
-    let menu = gio::Menu::new();
-    menu.append(Some("Settings"), Some("app.settings"));
-    let colors = gio::Menu::new();
-    colors.append(Some("Matrix green"), Some("app.set-palette::matrix"));
-    colors.append(Some("Turquoise"), Some("app.set-palette::turquoise"));
-    colors.append(Some("Blue"), Some("app.set-palette::blue"));
-    colors.append(Some("Pink"), Some("app.set-palette::pink"));
-    colors.append(Some("Yellow"), Some("app.set-palette::yellow"));
-    menu.append_submenu(Some("Color"), &colors);
-    app.set_menubar(Some(&menu));
+    app.set_menubar(Some(&crate::options::menubar()));
+    #[cfg(target_os = "macos")]
+    crate::macos_dock::install_dock_menu();
 }
 
 fn insert_stylesheet() {

@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use gtk::gdk;
-use gtk::gio;
 use gtk::glib::{self, ControlFlow};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, DrawingArea, Orientation};
@@ -70,6 +69,8 @@ pub fn show_monitor(app: &Application, config: Config) {
     });
 
     window.present();
+    #[cfg(target_os = "macos")]
+    crate::macos_dock::install_dock_menu();
 }
 
 pub fn refresh_overlay(app: &Application) {
@@ -85,7 +86,7 @@ pub fn refresh_overlay(app: &Application) {
 }
 
 fn attach_pointer(window: &ApplicationWindow, area: &DrawingArea, live: Arc<Mutex<Config>>) {
-    let menu_model = gio_overlay_menu();
+    let menu_model = crate::options::options_menu();
     let popover = gtk::PopoverMenu::from_model(Some(&menu_model));
     popover.set_parent(area);
     popover.set_has_arrow(false);
@@ -145,17 +146,4 @@ fn attach_pointer(window: &ApplicationWindow, area: &DrawingArea, live: Arc<Mute
         popover_click.popup();
     });
     area.add_controller(menu);
-}
-
-fn gio_overlay_menu() -> gio::Menu {
-    let menu = gio::Menu::new();
-    menu.append(Some("Settings"), Some("app.settings"));
-    let colors = gio::Menu::new();
-    colors.append(Some("Matrix green"), Some("app.set-palette::matrix"));
-    colors.append(Some("Turquoise"), Some("app.set-palette::turquoise"));
-    colors.append(Some("Blue"), Some("app.set-palette::blue"));
-    colors.append(Some("Pink"), Some("app.set-palette::pink"));
-    colors.append(Some("Yellow"), Some("app.set-palette::yellow"));
-    menu.append_submenu(Some("Color"), &colors);
-    menu
 }

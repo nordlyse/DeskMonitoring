@@ -5,6 +5,9 @@ mod metrics;
 mod overlay;
 #[cfg(target_os = "macos")]
 mod macos_place;
+#[cfg(target_os = "macos")]
+mod macos_dock;
+mod options;
 mod setup;
 mod snapshot;
 mod strands;
