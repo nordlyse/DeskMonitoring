@@ -30,9 +30,9 @@ pub fn paint(cr: &Context, w: f64, h: f64, palette: Palette) {
             continue;
         }
         let base = i as f64 / STRAND_COUNT as f64 + t * 0.035;
-        paint_ribbon(cr, &pts, 325.0, &stops(palette.neon, base), 0.04);
-        paint_ribbon(cr, &pts, 140.0, &stops(palette.neon, base), 0.09);
-        paint_ribbon(cr, &pts, 52.5, &stops(palette.neon, base), 0.28);
+        paint_ribbon(cr, &pts, 325.0, &stops(palette.neon, base), 0.02);
+        paint_ribbon(cr, &pts, 140.0, &stops(palette.neon, base), 0.045);
+        paint_ribbon(cr, &pts, 52.5, &stops(palette.neon, base), 0.14);
     }
 }
 
