@@ -23,6 +23,7 @@ pub fn paint(cr: &Context, width: i32, height: i32, snapshot: &Snapshot, config:
     rounded_rect(cr, 4.0, 4.0, w - 8.0, h - 8.0, 12.0);
     cr.clip();
     crate::weather_fx::paint(cr, w, h, snapshot, palette);
+    crate::strands::paint(cr, w, h, palette);
     paint_vertical(cr, w, h, snapshot, config, palette);
 }
 

@@ -7,6 +7,7 @@ mod overlay;
 mod macos_place;
 mod setup;
 mod snapshot;
+mod strands;
 mod theme;
 mod weather_fx;
 mod window;
